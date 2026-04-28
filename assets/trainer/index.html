@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Roux Bridge Trainer</title>
+    <script src="https://cdn.cubing.net/v0/js/cubing/twisty" type="module"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -15,8 +16,10 @@
         --accent: #9a6335;
         --accent-strong: #bc7a3d;
         --blue: #0b47b7;
+        --green: #138a38;
         --red: #d53113;
         --orange: #e88400;
+        --yellow: #f0d02d;
         --white: #f4f4f2;
       }
 
@@ -68,7 +71,7 @@
 
       .tabs {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 6px;
         margin-bottom: 12px;
       }
@@ -82,6 +85,11 @@
         color: var(--text);
         background: #303846;
         cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
       }
 
       .tab {
@@ -131,7 +139,7 @@
 
       .stage {
         display: grid;
-        grid-template-rows: auto minmax(340px, 1fr) auto auto;
+        grid-template-rows: auto minmax(420px, 1fr) auto auto auto;
         gap: 12px;
         min-width: 0;
       }
@@ -155,61 +163,175 @@
         text-align: center;
       }
 
+      .move.done {
+        background: #526070;
+        color: var(--text);
+      }
+
+      .move.current {
+        background: #f0b36d;
+        box-shadow: 0 0 0 3px rgba(240, 179, 109, 0.24);
+      }
+
       .cube-zone {
         position: relative;
         display: grid;
         place-items: center;
-        overflow: hidden;
-        min-height: 340px;
+        overflow: visible;
+        min-height: 420px;
+        touch-action: none;
       }
 
-      .cube-scene {
-        width: min(58vw, 360px);
-        height: min(58vw, 360px);
-        min-width: 240px;
-        min-height: 240px;
-        perspective: 780px;
-      }
-
-      .cube {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        transform-style: preserve-3d;
-        transform: rotateX(-28deg) rotateY(42deg);
-      }
-
-      .face {
+      .mirror-container {
         position: absolute;
-        inset: 15%;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      .mirror-grid {
+        position: absolute;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(3, 1fr);
-        gap: 3px;
+        gap: 2px;
+        width: clamp(60px, 15vw, 80px);
+        height: clamp(60px, 15vw, 80px);
+        background: rgba(0, 0, 0, 0.3);
         padding: 3px;
-        border: 3px solid rgba(0, 0, 0, 0.72);
-        background: rgba(10, 12, 16, 0.8);
+        border-radius: 4px;
+        border: 1px solid var(--line);
       }
 
-      .front {
-        transform: translateZ(126px);
-      }
+      .mirror-grid.back { top: 20px; right: 20px; }
+      .mirror-grid.left { top: 20px; left: 20px; }
+      .mirror-grid.bottom { bottom: 20px; left: 50%; transform: translateX(-50%); }
 
-      .right {
-        transform: rotateY(90deg) translateZ(126px);
-      }
-
-      .top {
-        transform: rotateX(90deg) translateZ(126px);
-      }
-
-      .sticker {
-        border: 1px solid rgba(0, 0, 0, 0.7);
+      .mirror-sticker {
+        width: 100%;
+        height: 100%;
+        border-radius: 2px;
         background: rgba(20, 24, 31, 0.6);
+      }
+
+      twisty-player {
+        display: block;
+        width: min(88vw, 520px);
+        height: min(88vw, 520px);
+        min-height: 340px;
+        position: absolute;
+        inset: 20px;
+        margin: auto;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      body.twisty-ready twisty-player {
+        opacity: 0;
+      }
+
+      .cube-scene {
+        display: grid;
+        place-items: center;
+        width: min(82vw, 420px);
+        height: min(82vw, 420px);
+        min-width: 260px;
+        min-height: 260px;
+        perspective: 900px;
+      }
+
+      .cube {
+        --cube-size: min(56vw, 230px);
+        --cubie-size: calc(var(--cube-size) / 3);
+        --cubie-gap: 2px;
+        position: relative;
+        width: var(--cube-size);
+        height: var(--cube-size);
+        transform-style: preserve-3d;
+        transform: rotateX(-27deg) rotateY(-38deg);
+      }
+
+      .cubie {
+        position: absolute;
+        top: calc(50% - var(--cubie-size) / 2);
+        left: calc(50% - var(--cubie-size) / 2);
+        width: var(--cubie-size);
+        height: var(--cubie-size);
+        transform-style: preserve-3d;
+        transform:
+          var(--layer-rotation, rotate3d(0, 0, 0, 0deg))
+          translate3d(
+            calc(var(--cubie-x) * var(--cubie-size)),
+            calc(var(--cubie-y) * var(--cubie-size)),
+            calc(var(--cubie-z) * var(--cubie-size))
+          );
+        transition: transform 420ms cubic-bezier(0.2, 0.82, 0.2, 1);
+      }
+
+      .cubie.moving-layer {
+        z-index: 3;
+      }
+
+      .cubie-core {
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(0, 0, 0, 0.74);
+        background: rgba(6, 8, 11, 0.92);
+        transform: translateZ(0);
+      }
+
+      .sticker-face {
+        position: absolute;
+        inset: var(--cubie-gap);
+        border: 1px solid rgba(0, 0, 0, 0.66);
+        border-radius: 2px;
+        background: rgba(20, 24, 31, 0.6);
+        backface-visibility: hidden;
+        transition:
+          box-shadow 180ms ease,
+          opacity 180ms ease;
+      }
+
+      .sticker-face.front {
+        transform: translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.back {
+        transform: rotateY(180deg) translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.right {
+        transform: rotateY(90deg) translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.left {
+        transform: rotateY(-90deg) translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.top {
+        transform: rotateX(90deg) translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.bottom {
+        transform: rotateX(-90deg) translateZ(calc(var(--cubie-size) / 2 + 0.3px));
+      }
+
+      .sticker-face.dim {
+        opacity: 0.38;
+      }
+
+      .sticker-face.focus {
+        box-shadow:
+          inset 0 0 0 3px rgba(255, 230, 155, 0.95),
+          0 0 16px rgba(255, 180, 80, 0.62);
       }
 
       .blue {
         background: var(--blue);
+      }
+
+      .green {
+        background: var(--green);
       }
 
       .red {
@@ -224,12 +346,24 @@
         background: var(--white);
       }
 
+      .yellow {
+        background: var(--yellow);
+      }
+
       .hint {
         position: absolute;
         left: 16px;
         bottom: 16px;
         color: var(--muted);
         font-size: 14px;
+      }
+
+      .step-status {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 12px;
+        color: var(--muted);
       }
 
       .controls {
@@ -242,6 +376,11 @@
       .control {
         min-height: 48px;
         font-size: 22px;
+      }
+
+      .control.active {
+        background: var(--accent);
+        color: #120b06;
       }
 
       .step-note {
@@ -299,8 +438,20 @@
           grid-template-columns: 1fr;
         }
 
+        .sidebar {
+          order: 2;
+        }
+
         .stage {
-          grid-template-rows: auto 360px auto auto;
+          order: 1;
+        }
+
+        .practice {
+          order: 3;
+        }
+
+        .stage {
+          grid-template-rows: auto 420px auto auto auto;
         }
       }
     </style>
@@ -313,6 +464,8 @@
           <button class="tab active" data-filter="ALL">All</button>
           <button class="tab" data-filter="FB">FB</button>
           <button class="tab" data-filter="SB">SB</button>
+          <button class="tab" data-filter="CMLL">CMLL</button>
+          <button class="tab" data-filter="LSE">LSE</button>
         </div>
         <div class="case-list" id="caseList"></div>
       </aside>
@@ -320,14 +473,28 @@
       <section class="panel stage">
         <div class="alg-strip" id="algStrip"></div>
         <div class="cube-zone">
+          <twisty-player
+            id="twistyPlayer"
+            puzzle="3x3x3"
+            background="none"
+            control-panel="none"
+            hint-facelets="floating"
+            back-view="top-right"
+            experimental-setup-alg=""
+          ></twisty-player>
           <div class="cube-scene" aria-label="3D cube training view">
-            <div class="cube" id="cube">
-              <div class="face front" id="frontFace"></div>
-              <div class="face right" id="rightFace"></div>
-              <div class="face top" id="topFace"></div>
-            </div>
+            <div class="cube" id="cube"></div>
+          </div>
+          <div class="mirror-container">
+            <div class="mirror-grid left" id="mirrorLeft"></div>
+            <div class="mirror-grid back" id="mirrorBack"></div>
+            <div class="mirror-grid bottom" id="mirrorBottom"></div>
           </div>
           <div class="hint" id="goalHint"></div>
+        </div>
+        <div class="step-status">
+          <span id="stepCounter" aria-live="polite"></span>
+          <span id="playState" aria-live="polite">Paused</span>
         </div>
         <div class="controls">
           <button class="control" id="firstBtn" aria-label="First step">|&lt;</button>
@@ -410,13 +577,188 @@
             { alg: "U r U' r'", note: "Pair and position the right block pieces." },
             { alg: "U' R U R'", note: "Finish the right block with a compact insertion." }
           ]
+        },
+        {
+          id: "fb-cec-square",
+          phase: "FB",
+          title: "Center-Edge-Corner square",
+          goal: "Build a square using M-slice and R moves",
+          scramble: "R' U' R U M' U2 M",
+          solution: "M' U2 M U' R U R'",
+          tags: ["CEC square", "FB"],
+          source: ["Rouxers", "https://tutorial.rouxers.com/"],
+          steps: [{ alg: "M' U2 M U' R U R'", note: "Efficient square building." }]
+        },
+        {
+          id: "sb-m-slice-insert",
+          phase: "SB",
+          title: "M-slice pair insertion",
+          goal: "Insert SB pair using the M-slice",
+          scramble: "R U R' U' M' U2 M",
+          solution: "M' U2 M U R U' R'",
+          tags: ["M-slice", "SB"],
+          source: ["Rouxers", "https://tutorial.rouxers.com/"],
+          steps: [{ alg: "M' U2 M U R U' R'", note: "Using M-slice for SB efficiency." }]
+        },
+        {
+          id: "cmll-sune",
+          phase: "CMLL",
+          title: "Sune (Left Bar)",
+          goal: "Orient corners while FB/SB are solved",
+          scramble: "R U2 R' U' R U' R'",
+          solution: "R U R' U R U2 R'",
+          tags: ["Sune", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/sune"],
+          steps: [{ alg: "R U R' U R U2 R'", note: "Standard Sune execution." }]
+        },
+        {
+          id: "cmll-antisune",
+          phase: "CMLL",
+          title: "Anti-Sune (Right Bar)",
+          goal: "Orient corners while FB/SB are solved",
+          scramble: "R U R' U R U2 R'",
+          solution: "R U2 R' U' R U' R'",
+          tags: ["Anti-Sune", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/antisune"],
+          steps: [{ alg: "R U2 R' U' R U' R'", note: "Standard Anti-Sune execution." }]
+        },
+        {
+          id: "cmll-pi-right",
+          phase: "CMLL",
+          title: "Pi (Right Bar)",
+          goal: "Orient corners (Headlights + side)",
+          scramble: "F U R U' R' F'",
+          solution: "F R U R' U' F'",
+          tags: ["Pi", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/pi"],
+          steps: [{ alg: "F R U R' U' F'", note: "Common Pi case algorithm." }]
+        },
+        {
+          id: "lse-arrow",
+          phase: "LSE",
+          title: "EO Arrow Case",
+          goal: "Orient 3 bad edges on top, 1 on bottom",
+          scramble: "M' U' M",
+          solution: "M' U M'",
+          tags: ["EO", "Arrow", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/eo"],
+          steps: [{ alg: "M' U M'", note: "Convert arrow to solved EO." }]
+        },
+        {
+          id: "lse-lr-basic",
+          phase: "LSE",
+          title: "LR edges at DF/DB",
+          goal: "Place UL and UR edges",
+          scramble: "M2 U2 M2",
+          solution: "M2 U2 M2",
+          tags: ["LR", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/lr"],
+          steps: [{ alg: "M2 U2 M2", note: "Insert LR edges from DF/DB." }]
+        },
+        {
+          id: "lse-4c-dots",
+          phase: "LSE",
+          title: "4C Dots (H-Perm)",
+          goal: "Permute middle slice edges",
+          scramble: "M2 U2 M2 U2",
+          solution: "M2 U2 M2 U2",
+          tags: ["4C", "Dots", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/4c"],
+          steps: [{ alg: "M2 U2 M2 U2", note: "Solve the dot permutation." }]
+        },
+        {
+          id: "cmll-h-columns",
+          phase: "CMLL",
+          title: "H Columns",
+          goal: "Orient corners (Headlights on all sides)",
+          scramble: "R U R' U R U' R' U R U2 R' U'",
+          solution: "U R U2 R' U' R U R' U' R U' R'",
+          tags: ["H", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/h"],
+          steps: [{ alg: "U R U2 R' U' R U R' U' R U' R'", note: "Execution for H columns." }]
+        },
+        {
+          id: "cmll-u-forward",
+          phase: "CMLL",
+          title: "U Forward Slash",
+          goal: "Orient corners (Headlights on one side)",
+          scramble: "R U2 R D R' U2 R D' R2",
+          solution: "R2 D R' U2 R D' R' U2 R'",
+          tags: ["U", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/u"],
+          steps: [{ alg: "R2 D R' U2 R D' R' U2 R'", note: "Standard U Forward execution." }]
+        },
+        {
+          id: "cmll-t-left",
+          phase: "CMLL",
+          title: "T Left Bar",
+          goal: "Orient corners (Chameleon)",
+          scramble: "F R' F' R U R U' R'",
+          solution: "R U R' U' R' F R F'",
+          tags: ["T", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/t"],
+          steps: [{ alg: "R U R' U' R' F R F'", note: "Standard T case algorithm." }]
+        },
+        {
+          id: "cmll-l-bowtie",
+          phase: "CMLL",
+          title: "L Bow-tie",
+          goal: "Orient corners (Diagonal orientation)",
+          scramble: "r U R' U' r' F R F'",
+          solution: "F R' F' r U R U' r'",
+          tags: ["L", "CMLL"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/cmll/l"],
+          steps: [{ alg: "F R' F' r U R U' r'", note: "Standard L case algorithm." }]
+        },
+        {
+          id: "lse-eo-4top",
+          phase: "LSE",
+          title: "EO 4 Bad on Top",
+          goal: "Orient 4 bad edges on top",
+          scramble: "M U' M U2 M U2 M",
+          solution: "M' U2 M' U2 M' U M'",
+          tags: ["EO", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/eo"],
+          steps: [{ alg: "M' U2 M' U2 M' U M'", note: "Solve 4 top bad edges." }]
+        },
+        {
+          id: "lse-4c-columns",
+          phase: "LSE",
+          title: "4C Columns (Z-Perm)",
+          goal: "Permute middle slice edges",
+          scramble: "M U2 M2 U2 M",
+          solution: "M' U2 M2 U2 M'",
+          tags: ["4C", "Columns", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/4c"],
+          steps: [{ alg: "M' U2 M2 U2 M'", note: "Solve the column permutation." }]
+        },
+        {
+          id: "lse-eolr-arrow",
+          phase: "LSE",
+          title: "EOLR Arrow",
+          goal: "Orient edges and position LR simultaneously",
+          scramble: "M U M U M U' M",
+          solution: "M' U M' U' M' U' M'",
+          tags: ["EOLR", "LSE"],
+          source: ["Kian Mansour", "https://sites.google.com/view/kianroux/lse/eolr"],
+          steps: [{ alg: "M' U M' U' M' U' M'", note: "Optimized EOLR execution." }]
         }
       ];
 
       let filter = "ALL";
       let activeCaseIndex = 0;
-      let activeStepIndex = 0;
+      let activeMoveIndex = 0;
+      let isAnimatingMove = false;
       let timer = null;
+      const playbackDelayMs = 950;
+      const moveAnimationMs = 430;
+
+      // Rotation state
+      let isDragging = false;
+      let lastMouseX = 0;
+      let lastMouseY = 0;
+      let cubeRotationX = -27;
+      let cubeRotationY = -38;
 
       const normalizeAlg = (alg) =>
         alg
@@ -429,47 +771,384 @@
         filter === "ALL" ? cases : cases.filter((item) => item.phase === filter);
 
       const activeCase = () => filteredCases()[activeCaseIndex] ?? filteredCases()[0];
+      const twistyPlayer = document.querySelector("#twistyPlayer");
 
-      const renderFace = (target, palette) => {
-        target.innerHTML = "";
-        for (let i = 0; i < 9; i += 1) {
-          const sticker = document.createElement("div");
-          sticker.className = `sticker ${palette[i] ?? ""}`;
-          target.appendChild(sticker);
+      const faceSpecs = {
+        front: {
+          normal: { x: 0, y: 0, z: 1 },
+          color: "blue",
+          position: (row, col) => ({ x: col - 1, y: 1 - row, z: 1 }),
+          rowCol: (pos) => [1 - pos.y, pos.x + 1]
+        },
+        back: {
+          normal: { x: 0, y: 0, z: -1 },
+          color: "green",
+          position: (row, col) => ({ x: 1 - col, y: 1 - row, z: -1 }),
+          rowCol: (pos) => [1 - pos.y, 1 - pos.x]
+        },
+        right: {
+          normal: { x: 1, y: 0, z: 0 },
+          color: "red",
+          position: (row, col) => ({ x: 1, y: 1 - row, z: 1 - col }),
+          rowCol: (pos) => [1 - pos.y, 1 - pos.z]
+        },
+        left: {
+          normal: { x: -1, y: 0, z: 0 },
+          color: "yellow",
+          position: (row, col) => ({ x: -1, y: 1 - row, z: col - 1 }),
+          rowCol: (pos) => [1 - pos.y, pos.z + 1]
+        },
+        top: {
+          normal: { x: 0, y: 1, z: 0 },
+          color: "orange",
+          position: (row, col) => ({ x: col - 1, y: 1, z: row - 1 }),
+          rowCol: (pos) => [pos.z + 1, pos.x + 1]
+        },
+        bottom: {
+          normal: { x: 0, y: -1, z: 0 },
+          color: "white",
+          position: (row, col) => ({ x: col - 1, y: -1, z: 1 - row }),
+          rowCol: (pos) => [1 - pos.z, pos.x + 1]
         }
       };
 
-      const renderCube = (item) => {
-        const fb = item.phase === "FB";
-        renderFace(
-          document.querySelector("#frontFace"),
-          fb
-            ? ["blue", "blue", "", "blue", "blue", "", "blue", "white", ""]
-            : ["", "blue", "blue", "", "blue", "blue", "", "red", "blue"]
-        );
-        renderFace(
-          document.querySelector("#rightFace"),
-          fb
-            ? ["", "", "red", "", "", "red", "", "", "red"]
-            : ["white", "white", "red", "blue", "blue", "red", "", "red", "red"]
-        );
-        renderFace(
-          document.querySelector("#topFace"),
-          fb
-            ? ["orange", "orange", "", "orange", "", "white", "", "", ""]
-            : ["", "white", "white", "orange", "", "white", "", "", ""]
-        );
+      const cloneVector = (vector) => ({ x: vector.x, y: vector.y, z: vector.z });
+
+      const solvedCubeState = () => {
+        const stickers = [];
+        Object.entries(faceSpecs).forEach(([faceName, spec]) => {
+          for (let row = 0; row < 3; row += 1) {
+            for (let col = 0; col < 3; col += 1) {
+              stickers.push({
+                faceName,
+                color: spec.color,
+                pos: spec.position(row, col),
+                normal: cloneVector(spec.normal)
+              });
+            }
+          }
+        });
+        return stickers;
       };
 
-      const playbackAlg = (item) =>
-        item.steps
-          .slice(0, activeStepIndex + 1)
-          .map((step) => step.alg)
+      const normalizeAxis = (value) => {
+        const rounded = Math.round(value);
+        return Object.is(rounded, -0) ? 0 : rounded;
+      };
+
+      const rotateVector = (vector, axis, turns) => {
+        let result = cloneVector(vector);
+        const count = ((turns % 4) + 4) % 4;
+        for (let i = 0; i < count; i += 1) {
+          if (axis === "x") {
+            result = { x: result.x, y: -result.z, z: result.y };
+          } else if (axis === "y") {
+            result = { x: result.z, y: result.y, z: -result.x };
+          } else {
+            result = { x: -result.y, y: result.x, z: result.z };
+          }
+        }
+        return {
+          x: normalizeAxis(result.x),
+          y: normalizeAxis(result.y),
+          z: normalizeAxis(result.z)
+        };
+      };
+
+      const moveDefinitions = {
+        U: { axis: "y", layers: [1], turns: -1 },
+        D: { axis: "y", layers: [-1], turns: 1 },
+        R: { axis: "x", layers: [1], turns: -1 },
+        L: { axis: "x", layers: [-1], turns: 1 },
+        F: { axis: "z", layers: [1], turns: -1 },
+        B: { axis: "z", layers: [-1], turns: 1 },
+        M: { axis: "x", layers: [0], turns: 1 },
+        E: { axis: "y", layers: [0], turns: 1 },
+        S: { axis: "z", layers: [0], turns: -1 },
+        r: { axis: "x", layers: [0, 1], turns: -1 },
+        l: { axis: "x", layers: [-1, 0], turns: 1 },
+        u: { axis: "y", layers: [0, 1], turns: -1 },
+        d: { axis: "y", layers: [-1, 0], turns: 1 },
+        f: { axis: "z", layers: [0, 1], turns: -1 },
+        b: { axis: "z", layers: [-1, 0], turns: 1 }
+      };
+
+      const parsedMove = (move) => {
+        const base = move.replace(/[2']/g, "");
+        const definition = moveDefinitions[base];
+        if (!definition) {
+          return null;
+        }
+        const amount = move.includes("2") ? 2 : 1;
+        const direction = move.includes("'") ? -1 : 1;
+        return {
+          axis: definition.axis,
+          layers: definition.layers,
+          turns: definition.turns * amount * direction
+        };
+      };
+
+      const applyMove = (state, move) => {
+        const parsed = parsedMove(move);
+        if (!parsed) {
+          return;
+        }
+        state.forEach((sticker) => {
+          if (!parsed.layers.includes(sticker.pos[parsed.axis])) {
+            return;
+          }
+          sticker.pos = rotateVector(sticker.pos, parsed.axis, parsed.turns);
+          sticker.normal = rotateVector(sticker.normal, parsed.axis, parsed.turns);
+        });
+      };
+
+      const cubeStateAfterMoves = (moves) => {
+        const state = solvedCubeState();
+        moves.forEach((move) => applyMove(state, move));
+        return state;
+      };
+
+      const faceNameForNormal = (normal) =>
+        Object.entries(faceSpecs).find(([, spec]) =>
+          spec.normal.x === normal.x && spec.normal.y === normal.y && spec.normal.z === normal.z
+        )?.[0];
+
+      const vectorKey = (pos) => `${pos.x},${pos.y},${pos.z}`;
+
+      const renderMirrors = (state) => {
+        const mirrors = {
+          left: document.querySelector("#mirrorLeft"),
+          back: document.querySelector("#mirrorBack"),
+          bottom: document.querySelector("#mirrorBottom")
+        };
+
+        Object.keys(mirrors).forEach(key => {
+          if (mirrors[key]) mirrors[key].innerHTML = "";
+        });
+
+        state.forEach(sticker => {
+          const faceName = faceNameForNormal(sticker.normal);
+          if (["left", "back", "bottom"].includes(faceName)) {
+            const spec = faceSpecs[faceName];
+            const [row, col] = spec.rowCol(sticker.pos);
+            const div = document.createElement("div");
+            div.className = `mirror-sticker ${sticker.color}`;
+            div.style.gridRow = row + 1;
+            div.style.gridColumn = col + 1;
+            if (mirrors[faceName]) mirrors[faceName].appendChild(div);
+          }
+        });
+      };
+
+      const isInMoveLayer = (pos, parsed) => parsed.layers.includes(pos[parsed.axis]);
+
+      const layerTransform = (parsedMove) => {
+        const angle = (parsedMove.visualTurns ?? parsedMove.turns) * 90;
+        const axis = parsedMove.axis.toUpperCase();
+        return `rotate${axis}(${-angle}deg)`;
+      };
+
+      const cubiePositions = () => {
+        const positions = [];
+        for (let x = -1; x <= 1; x += 1) {
+          for (let y = -1; y <= 1; y += 1) {
+            for (let z = -1; z <= 1; z += 1) {
+              positions.push({ x, y, z });
+            }
+          }
+        }
+        return positions;
+      };
+
+      const renderCubies = (state, rotatingMove = null) => {
+        renderMirrors(state);
+        const stickersByCubie = new Map();
+        state.forEach((sticker) => {
+          const key = vectorKey(sticker.pos);
+          const stickers = stickersByCubie.get(key) ?? [];
+          const faceName = faceNameForNormal(sticker.normal);
+          stickers.push({ ...sticker, faceName });
+          stickersByCubie.set(key, stickers);
+        });
+
+        const parsed = rotatingMove?.parsed ?? null;
+        const focusFace = parsed ? moveFaceName(rotatingMove?.move ?? "") : "";
+        document.querySelector("#cube").innerHTML = cubiePositions()
+          .map((pos) => {
+            const stickers = stickersByCubie.get(vectorKey(pos)) ?? [];
+            const isMoving = parsed ? isInMoveLayer(pos, parsed) : false;
+            const layerRotation = isMoving ? layerTransform(parsed) : "rotate3d(0, 0, 0, 0deg)";
+            const cubieClass = isMoving ? 'class="cubie moving-layer"' : 'class="cubie"';
+            return `
+              <div ${cubieClass}
+                style="--cubie-x:${pos.x}; --cubie-y:${-pos.y}; --cubie-z:${pos.z}; --layer-rotation:${layerRotation};">
+                <div class="cubie-core"></div>
+                ${stickers
+                  .filter((sticker) => sticker.faceName)
+                  .map((sticker) => {
+                    const isFocus = isMoving || (focusFace && sticker.faceName === focusFace);
+                    const stickerModifiers = [
+                      isMoving ? "focus" : "",
+                      focusFace && !isFocus ? "dim" : ""
+                    ].join(" ");
+                    return `<div class="sticker-face ${sticker.faceName} ${sticker.color} ${stickerModifiers}"></div>`;
+                  })
+                  .join("")}
+              </div>
+            `;
+          })
+          .join("");
+      };
+
+      const renderCube = (item, stepIndex, rotatingMove = null) => {
+        const currentMove = activeTimelineEntry(item).move;
+        
+        // Auto-update base orientation if not currently dragging
+        if (!isDragging) {
+          cubeRotationX = -27 + stepIndex * 2;
+          cubeRotationY = item.phase === "FB" ? -38 : 38;
+        }
+
+        document.querySelector("#cube").style.transform =
+          `rotateX(${cubeRotationX}deg) rotateY(${cubeRotationY}deg)`;
+          
+        const executedMoves = [
+          ...tokenizeAlg(item.scramble),
+          ...moveTimeline(item).slice(0, activeMoveIndex).map((entry) => entry.move)
+        ];
+        renderCubies(cubeStateAfterMoves(executedMoves), rotatingMove ?? { move: currentMove });
+      };
+
+      const tokenizeAlg = (alg) => normalizeAlg(alg).split(" ").filter(Boolean);
+
+      const moveTimeline = (item) =>
+        item.steps.flatMap((step, stepIndex) =>
+          tokenizeAlg(step.alg).map((move, moveIndexInStep) => ({
+            move,
+            stepIndex,
+            moveIndexInStep,
+            stepAlg: step.alg,
+            note: step.note
+          }))
+        );
+
+      const activeTimelineEntry = (item) => {
+        const timeline = moveTimeline(item);
+        return timeline[Math.min(activeMoveIndex, timeline.length - 1)];
+      };
+
+      const moveFaceName = (move) => {
+        const face = move.replace(/[2']/g, "")[0];
+        const faces = {
+          U: "top",
+          u: "top",
+          D: "bottom",
+          d: "bottom",
+          R: "right",
+          r: "right",
+          L: "left",
+          l: "left",
+          F: "front",
+          f: "front",
+          B: "back",
+          b: "back",
+          M: "left",
+          E: "bottom",
+          S: "front"
+        };
+        return faces[face] ?? "";
+      };
+
+      const moveFaceOffset = (move) => {
+        const face = move.replace(/[2']/g, "")[0]?.toUpperCase();
+        const offsets = {
+          U: { x: -8, y: 0 },
+          D: { x: 8, y: 0 },
+          R: { x: 0, y: 12 },
+          L: { x: 0, y: -12 },
+          F: { x: -4, y: -8 },
+          B: { x: 4, y: 8 },
+          M: { x: 0, y: -18 },
+          E: { x: 10, y: 0 },
+          S: { x: -10, y: 0 }
+        };
+        return offsets[face] ?? { x: 0, y: 0 };
+      };
+
+      const stepSetupAlg = (item, moveIndex) =>
+        [item.scramble, ...moveTimeline(item).slice(0, moveIndex).map((entry) => entry.move)]
+          .filter(Boolean)
           .join(" ");
+
+      const updateTwistyPlayer = (item, moveIndex, shouldPlay = false) => {
+        const currentMove = activeTimelineEntry(item);
+        twistyPlayer.setAttribute("experimental-setup-alg", stepSetupAlg(item, moveIndex));
+        twistyPlayer.setAttribute("alg", currentMove.move);
+        twistyPlayer.setAttribute("experimental-title", `${item.title} - move ${moveIndex + 1}`);
+
+        if (typeof twistyPlayer.jumpToStart === "function") {
+          twistyPlayer.jumpToStart();
+        }
+        if (shouldPlay && typeof twistyPlayer.play === "function") {
+          setTimeout(() => twistyPlayer.play(), 80);
+        }
+      };
+
+      const goToMove = (nextMoveIndex) => {
+        if (isAnimatingMove) {
+          return;
+        }
+        const timeline = moveTimeline(activeCase());
+        activeMoveIndex = Math.max(0, Math.min(timeline.length, nextMoveIndex));
+        render();
+      };
+
+      const animateMove = (direction) => {
+        if (isAnimatingMove) {
+          return false;
+        }
+
+        const item = activeCase();
+        const timeline = moveTimeline(item);
+        const moveIndex = direction > 0 ? activeMoveIndex : activeMoveIndex - 1;
+        if (moveIndex < 0 || moveIndex >= timeline.length) {
+          return false;
+        }
+
+        const entry = timeline[moveIndex];
+        const parsed = parsedMove(entry.move);
+        if (!parsed) {
+          activeMoveIndex = Math.max(0, Math.min(timeline.length, activeMoveIndex + direction));
+          render();
+          return true;
+        }
+
+        isAnimatingMove = true;
+        const visualParsed = { ...parsed, visualTurns: direction > 0 ? parsed.turns : -parsed.turns };
+        renderCube(item, entry.stepIndex, { move: entry.move, parsed: { ...visualParsed, visualTurns: 0 } });
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".moving-layer").forEach((cubie) => {
+            cubie.style.setProperty("--layer-rotation", layerTransform(visualParsed));
+          });
+        });
+        document.querySelector("#playState").textContent = direction > 0 ? "Turning" : "Reversing";
+
+        const targetMoveIndex = activeMoveIndex + direction;
+        setTimeout(() => {
+          activeMoveIndex = targetMoveIndex;
+          isAnimatingMove = false;
+          render();
+          updateTwistyPlayer(activeCase(), activeMoveIndex, true);
+        }, moveAnimationMs);
+        return true;
+      };
 
       const render = () => {
         const list = filteredCases();
         const item = activeCase();
+        const timeline = moveTimeline(item);
+        const currentEntry = activeTimelineEntry(item);
+        const activeStepIndex = currentEntry.stepIndex;
         document.querySelectorAll(".tab").forEach((tab) => {
           tab.classList.toggle("active", tab.dataset.filter === filter);
         });
@@ -486,68 +1165,100 @@
         document.querySelectorAll(".case").forEach((button) => {
           button.addEventListener("click", () => {
             activeCaseIndex = Number(button.dataset.caseIndex);
-            activeStepIndex = 0;
+            activeMoveIndex = 0;
             stopPlayback();
             render();
           });
         });
-        document.querySelector("#algStrip").innerHTML = playbackAlg(item)
-          .split(" ")
-          .filter(Boolean)
-          .map((move) => `<span class="move">${move}</span>`)
+        document.querySelector("#algStrip").innerHTML = timeline
+          .map((entry, index) => {
+            const stateClass =
+              index === activeMoveIndex ? "move current" : index < activeMoveIndex ? "move done" : "move";
+            return `<span class="${stateClass}">${entry.move}</span>`;
+          })
           .join("");
+        const completed = Math.min(activeMoveIndex, timeline.length);
         document.querySelector("#stepNote").innerHTML =
-          `<code>${item.steps[activeStepIndex].alg}</code>${item.steps[activeStepIndex].note}`;
+          activeMoveIndex >= timeline.length
+            ? `<code>Done</code>${item.goal}`
+            : `<code>${currentEntry.move}</code>${currentEntry.note}`;
+        document.querySelector("#stepCounter").textContent =
+          `Move ${Math.min(activeMoveIndex + 1, timeline.length)} / ${timeline.length} · Done ${completed}`;
         document.querySelector("#goalHint").textContent = item.goal;
         document.querySelector("#caseTitle").textContent = item.title;
         document.querySelector("#scramble").textContent = item.scramble;
         document.querySelector("#target").textContent = item.goal;
         document.querySelector("#source").textContent = item.source[0];
         document.querySelector("#source").href = item.source[1];
-        renderCube(item);
+        renderCube(item, activeStepIndex);
+        updateTwistyPlayer(item, activeMoveIndex);
+        if (!isAnimatingMove) {
+          document.querySelector("#playState").textContent = timer ? "Playing" : "Paused";
+        }
       };
 
       const stopPlayback = () => {
+        const hadTimer = Boolean(timer);
         if (timer) {
-          clearInterval(timer);
+          clearTimeout(timer);
           timer = null;
-          document.querySelector("#playBtn").textContent = "▶";
         }
+        if (hadTimer || isAnimatingMove) {
+          if (typeof twistyPlayer.pause === "function") {
+            twistyPlayer.pause();
+          }
+          document.querySelector("#playBtn").textContent = "▶";
+          document.querySelector("#playBtn").classList.remove("active");
+          document.querySelector("#playState").textContent = "Paused";
+        }
+      };
+
+      const playNextMove = () => {
+        const item = activeCase();
+        const timeline = moveTimeline(item);
+        if (activeMoveIndex >= timeline.length) {
+          stopPlayback();
+          return;
+        }
+
+        if (!animateMove(1)) {
+          stopPlayback();
+          return;
+        }
+
+        timer = setTimeout(playNextMove, playbackDelayMs);
       };
 
       document.querySelectorAll(".tab").forEach((tab) => {
         tab.addEventListener("click", () => {
           filter = tab.dataset.filter;
           activeCaseIndex = 0;
-          activeStepIndex = 0;
+          activeMoveIndex = 0;
           stopPlayback();
           render();
         });
       });
 
       document.querySelector("#firstBtn").addEventListener("click", () => {
-        activeStepIndex = 0;
         stopPlayback();
-        render();
+        goToMove(0);
+        updateTwistyPlayer(activeCase(), activeMoveIndex, true);
       });
 
       document.querySelector("#prevBtn").addEventListener("click", () => {
-        activeStepIndex = Math.max(0, activeStepIndex - 1);
         stopPlayback();
-        render();
+        animateMove(-1);
       });
 
       document.querySelector("#nextBtn").addEventListener("click", () => {
-        const item = activeCase();
-        activeStepIndex = Math.min(item.steps.length - 1, activeStepIndex + 1);
         stopPlayback();
-        render();
+        animateMove(1);
       });
 
       document.querySelector("#lastBtn").addEventListener("click", () => {
-        activeStepIndex = activeCase().steps.length - 1;
         stopPlayback();
-        render();
+        goToMove(moveTimeline(activeCase()).length);
+        updateTwistyPlayer(activeCase(), activeMoveIndex, true);
       });
 
       document.querySelector("#playBtn").addEventListener("click", () => {
@@ -556,15 +1267,10 @@
           return;
         }
         document.querySelector("#playBtn").textContent = "Ⅱ";
-        timer = setInterval(() => {
-          const item = activeCase();
-          if (activeStepIndex >= item.steps.length - 1) {
-            stopPlayback();
-            return;
-          }
-          activeStepIndex += 1;
-          render();
-        }, 1100);
+        document.querySelector("#playBtn").classList.add("active");
+        document.querySelector("#playState").textContent = "Playing";
+        updateTwistyPlayer(activeCase(), activeMoveIndex, true);
+        timer = setTimeout(playNextMove, playbackDelayMs);
       });
 
       document.querySelector("#checkBtn").addEventListener("click", () => {
@@ -582,6 +1288,38 @@
       });
 
       render();
+      customElements.whenDefined("twisty-player").then(() => {
+        document.body.classList.add("twisty-ready");
+        updateTwistyPlayer(activeCase(), activeMoveIndex);
+      });
+
+      // Drag to rotate logic
+      const zone = document.querySelector(".cube-zone");
+      zone.addEventListener("pointerdown", (e) => {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        zone.setPointerCapture(e.pointerId);
+      });
+
+      window.addEventListener("pointermove", (e) => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - lastMouseX;
+        const deltaY = e.clientY - lastMouseY;
+        
+        cubeRotationY += deltaX * 0.5;
+        cubeRotationX -= deltaY * 0.5;
+        
+        document.querySelector("#cube").style.transform =
+          `rotateX(${cubeRotationX}deg) rotateY(${cubeRotationY}deg)`;
+        
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      });
+
+      window.addEventListener("pointerup", (e) => {
+        isDragging = false;
+      });
     </script>
   </body>
 </html>

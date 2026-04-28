@@ -15,6 +15,16 @@ void main() {
     expect(find.text('FB / SB practice'), findsOneWidget);
     expect(find.byType(TestTrainerView), findsOneWidget);
   });
+
+  testWidgets('Flutter preview exposes first and second block practice cases', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: TrainerPreview()));
+
+    expect(find.text('DL first square + pair'), findsOneWidget);
+    expect(find.text('DR first second block'), findsOneWidget);
+    expect(find.text("U2 r U' r'"), findsOneWidget);
+  });
 }
 
 class TestTrainerView extends StatelessWidget {
